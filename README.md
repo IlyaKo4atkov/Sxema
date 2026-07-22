@@ -1,3 +1,4 @@
+```mermaid
 flowchart TD
     Start([Начало]) --> InitADC[adc_init: настройка АЦП (ADMUX, ADCSRA)]
     InitADC --> InitLCD[lcd_init: пины PORTD, команды 0x30 x3, 0x28, 0x0C, 0x06, 0x01]
