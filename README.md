@@ -1,46 +1,28 @@
 ```mermaid
 flowchart TD
-    Start([Начало]) --> InitADC[adc_init: настройка АЦП (ADMUX, ADCSRA)]
-    InitADC --> InitLCD[lcd_init: пины PORTD, команды 0x30 x3, 0x28, 0x0C, 0x06, 0x01]
-    InitLCD --> MainLoop{while(1)}
-
-    MainLoop --> ReadADC[adc_read(0): выбор канала, запуск ADSC, ожидание, возврат ADC]
-    ReadADC --> CalcTemp[Расчёт температуры: temp_x10 = raw * 500 / 1024]
-    CalcTemp --> RoundTemp[Округление до целого градуса]
-    RoundTemp --> StrConv[int_to_str_temp: разбор на сотни/десятки/единицы, ASCII, буфер]
-    StrConv --> SetCursor[lcd_set_cursor(0,0): адрес 0x80 + col]
-    SetCursor --> PrintLabel[lcd_print_str("Temp: ")]
-    PrintLabel --> PrintVal[lcd_print_str(temp_buf)]
+    Start([Старт]) --> Init[Инициализация]
+    Init --> AdcInit[adc_init:<br/>ADMUX=AVCC, ADCSRA=АЦП+делитель 128]
+    AdcInit --> LcdInit[lcd_init:<br/>DDRD=выходы, задержка 50 мс,<br/>0x30 x3, 0x28, 0x0C, 0x06, 0x01]
+    LcdInit --> Loop{while(1)}
+    Loop --> Read[Чтение ADC0:<br/>выбор канала, запуск, ожидание, возврат ADC]
+    Read --> Calc[Расчёт температуры:<br/>temp_x10 = raw*500/1024,<br/>округление до целого]
+    Calc --> ToStr[int_to_str_temp:<br/>разбор на разряды,<br/>перевод в ASCII,<br/>запись в буфер]
+    ToStr --> SetPos[lcd_set_cursor(0,0):<br/>адрес 0x80+col]
+    SetPos --> PrintHead[lcd_print_str("Temp: ")]
+    PrintHead --> PrintVal[lcd_print_str(temp_buf)]
     PrintVal --> PrintUnit[lcd_data(' '); lcd_data('C')]
     PrintUnit --> Delay[_delay_ms(1000)]
-    Delay --> MainLoop
-
-    subgraph LcdWriteDetail [lcd_write_4bits]
-        SetRS[Установить RS: LCD_DATA → 1, иначе 0]
-        SendHigh[Передать старшие 4 бита: маска 0xF0, D4–D7, lcd_pulse_e()]
-        SendLow[Передать младшие 4 бита: сдвиг на 4, маска 0xF0, D4–D7, lcd_pulse_e()]
+    Delay --> Loop
+    subgraph LcdFuncs [Вспомогательные функции LCD]
+        Cmd[lcd_cmd(cmd):<br/>lcd_write_4bits(cmd, LCD_CMD),<br/>_delay_ms(2)]
+        Data[lcd_data(data):<br/>lcd_write_4bits(data, LCD_DATA),<br/>_delay_ms(1)]
+        Write4[lcd_write_4bits:<br/>установка RS,<br/>старшие 4 бита + pulse_e,<br/>младшие 4 бита + pulse_e]
+        Pulse[lcd_pulse_e:<br/>E=1 → задержка 1 мкс → E=0]
     end
-    LcdWriteDetail --> SetRS
-    SetRS --> SendHigh
-    SendHigh --> SendLow
-
-    subgraph PulseDetail [lcd_pulse_e]
-        SetE1[PORTD: E = 1]
-        WaitUs[_delay_us(1)]
-        SetE0[PORTD: E = 0]
+    Cmd -.-> Write4
+    Data -.-> Write4
+    Write4 -.-> Pulse
+    subgraph AdcFuncs [Вспомогательные функции АЦП]
+        AdcRead[adc_read(channel):<br/>выбор канала в ADMUX,<br/>запуск ADSC,<br/>ожидание ADSC=0,<br/>возврат ADC]
     end
-    PulseDetail --> SetE1
-    SetE1 --> WaitUs
-    WaitUs --> SetE0
-
-    subgraph AdcReadDetail [adc_read]
-        SelChan[ADMUX: выбор канала, сохранение старших битов]
-        StartConv[ADCSRA: запуск ADSC]
-        WaitDone[Ожидание: пока ADSC = 1]
-        RetADC[Возврат значения ADC]
-    end
-    AdcReadDetail --> SelChan
-    SelChan --> StartConv
-    StartConv --> WaitDone
-    WaitDone --> RetADC
-    ReadADC -.-> AdcReadDetail
+    Read -.-> AdcRead
