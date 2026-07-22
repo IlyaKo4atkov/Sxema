@@ -1,8 +1,8 @@
-```mermaid
 flowchart TD
     Start([Начало]) --> InitADC[adc_init: настройка АЦП (ADMUX, ADCSRA)]
-    InitADC --> InitLCD[lcd_init: пины PORTD, команды 0x30×3, 0x28, 0x0C, 0x06, 0x01]
+    InitADC --> InitLCD[lcd_init: пины PORTD, команды 0x30 x3, 0x28, 0x0C, 0x06, 0x01]
     InitLCD --> MainLoop{while(1)}
+
     MainLoop --> ReadADC[adc_read(0): выбор канала, запуск ADSC, ожидание, возврат ADC]
     ReadADC --> CalcTemp[Расчёт температуры: temp_x10 = raw * 500 / 1024]
     CalcTemp --> RoundTemp[Округление до целого градуса]
@@ -13,6 +13,7 @@ flowchart TD
     PrintVal --> PrintUnit[lcd_data(' '); lcd_data('C')]
     PrintUnit --> Delay[_delay_ms(1000)]
     Delay --> MainLoop
+
     subgraph LcdWriteDetail [lcd_write_4bits]
         SetRS[Установить RS: LCD_DATA → 1, иначе 0]
         SendHigh[Передать старшие 4 бита: маска 0xF0, D4–D7, lcd_pulse_e()]
@@ -21,6 +22,7 @@ flowchart TD
     LcdWriteDetail --> SetRS
     SetRS --> SendHigh
     SendHigh --> SendLow
+
     subgraph PulseDetail [lcd_pulse_e]
         SetE1[PORTD: E = 1]
         WaitUs[_delay_us(1)]
@@ -29,6 +31,7 @@ flowchart TD
     PulseDetail --> SetE1
     SetE1 --> WaitUs
     WaitUs --> SetE0
+
     subgraph AdcReadDetail [adc_read]
         SelChan[ADMUX: выбор канала, сохранение старших битов]
         StartConv[ADCSRA: запуск ADSC]
